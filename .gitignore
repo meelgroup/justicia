@@ -10,3 +10,9 @@ verifair/*
 fairsquare/*
 pgmpy_notebook/*
 notears/*
+dist/*
+justicia.egg-info/*
+.vscode/*
+*/__pycache__/*
+build/*
+temp/*
