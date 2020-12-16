@@ -1,0 +1,12 @@
+__pycache__/*
+.vscode/*
+.DS_Store
+ssatABC/*
+aif360/*
+fair_Max_Entropy_Distributions/*
+backup_output/*
+data/output/fig/*
+verifair/*
+fairsquare/*
+pgmpy_notebook/*
+notears/*
