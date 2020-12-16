@@ -86,6 +86,7 @@ class Fairness_verifier():
         if(verbose):
             print("\n===================================\n")
 
+        os.system("rm " + str(dir_path) + "/" +str(filename))
         return self.execution_error
         
 
