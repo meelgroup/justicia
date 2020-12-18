@@ -16,3 +16,4 @@ justicia.egg-info/*
 */__pycache__/*
 build/*
 temp/*
+data/*
