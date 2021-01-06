@@ -123,8 +123,11 @@ class Metric():
             __classifier = self.model.get_selected_column_index()
             self._classifier = [[] for _ in __classifier]
             for idx in range(len(__classifier)):
-                for _var in __classifier[idx]:
-                    self._classifier[idx].append(_var + 1)
+                for (_var, _phase) in __classifier[idx]:
+                    if(_phase >= 0):
+                        self._classifier[idx].append(_var + 1)
+                    else:
+                        self._classifier[idx].append(-1 * (_var + 1))
             self._auxiliary_variables = []
             self._num_attributes = len(self._attributes + list(chain.from_iterable(self._sensitive_attributes)))
 

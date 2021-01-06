@@ -16,7 +16,7 @@ verbose = False
 datasetObj = Titanic(verbose=verbose, config=1)
 neg_model = None
 
-for model_name in ['svm-linear']:
+for model_name in ['CNF']:
     if(model_name == 'lr'):
         model, data_train, data_test,sensitive_attributes, y_train, y_test = linear_classifier_wrap.init(datasetObj, classifier=model_name, repaired=False, verbose=verbose, compute_equalized_odds=True)
 
