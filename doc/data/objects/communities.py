@@ -2,28 +2,24 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from justicia import utils
 import numpy as np
+from itertools import permutations, combinations
 
 
 class Communities_and_Crimes():
 
     def __init__(self, verbose=True, config=0):
+        self.name = "communities"
         self.filename = "data/raw/communities.data"
-        # if(config == 0):
-        #     self.known_sensitive_attributes = ['race', 'sex']
-        # elif(config == 1):
-        #     self.known_sensitive_attributes = ['race']
-        # elif(config == 2):
-        #     self.known_sensitive_attributes = ['sex']
-        # elif(config == 3):
-        #     self.known_sensitive_attributes = ['age']
-        # elif(config == 4):
-        #     self.known_sensitive_attributes = ['race', 'sex', 'age']
-        # elif(config == 5):
-        #     self.known_sensitive_attributes = ['race', 'age']
-        # elif(config == 6):
-        #     self.known_sensitive_attributes = ['sex', 'age']
-        # else:
-        #     raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        
+        self.config = config
+        sensitive_attributes = ["race", "age", "pctW", "marital", "Immig", "language", "Polic"]
+        all_sensitive_attributes = []
+        for i in range(len(sensitive_attributes)):
+            oc = combinations(sensitive_attributes, i + 1)
+            for c in oc:
+                all_sensitive_attributes.append(list(c))
+        self.known_sensitive_attributes = all_sensitive_attributes[self.config]
+        
 
         
         self._columns = ["state",
@@ -33,23 +29,23 @@ class Communities_and_Crimes():
                          "fold",
                          "population",
                          "householdsize",
-                         "racepctblack",
-                         "racePctWhite",
-                         "racePctAsian",
-                         "racePctHisp",
-                         "agePct12t21",
-                         "agePct12t29",
-                         "agePct16t24",
-                         "agePct65up",
+                         "race_Pctblack",
+                         "race_PctWhite",
+                         "race_PctAsian",
+                         "race_PctHisp",
+                         "age_Pct12t21",
+                         "age_Pct12t29",
+                         "age_Pct16t24",
+                         "age_Pct65up",
                          "numbUrban",
                          "pctUrban",
                          "medIncome",
-                         "pctWWage",
-                         "pctWFarmSelf",
-                         "pctWInvInc",
-                         "pctWSocSec",
-                         "pctWPubAsst",
-                         "pctWRetire",
+                         "pctW_Wage",
+                         "pctW_FarmSelf",
+                         "pctW_InvInc",
+                         "pctW_SocSec",
+                         "pctW_PubAsst",
+                         "pctW_Retire",
                          "medFamInc",
                          "perCapInc",
                          "whitePerCap",
@@ -69,9 +65,9 @@ class Communities_and_Crimes():
                          "PctEmplProfServ",
                          "PctOccupManu",
                          "PctOccupMgmtProf",
-                         "MalePctDivorce",
-                         "MalePctNevMarr",
-                         "FemalePctDiv",
+                         "marital_MalePctDivorce",
+                         "marital_MalePctNevMarr",
+                         "marital_FemalePctDiv",
                          "TotalPctDiv",
                          "PersPerFam",
                          "PctFam2Par",
@@ -83,16 +79,16 @@ class Communities_and_Crimes():
                          "NumIlleg",
                          "PctIlleg",
                          "NumImmig",
-                         "PctImmigRecent",
-                         "PctImmigRec5",
-                         "PctImmigRec8",
-                         "PctImmigRec10",
+                         "Immig_PctRecent",
+                         "Immig_PctRec5",
+                         "Immig_PctRec8",
+                         "Immig_PctRec10",
                          "PctRecentImmig",
                          "PctRecImmig5",
                          "PctRecImmig8",
                          "PctRecImmig10",
-                         "PctSpeakEnglOnly",
-                         "PctNotSpeakEnglWell",
+                         "language_PctSpeakEnglOnly",
+                         "language_PctNotSpeakEnglOnly",
                          "PctLargHouseFam",
                          "PctLargHouseOccup",
                          "PersPerOccupHous",
@@ -136,11 +132,11 @@ class Communities_and_Crimes():
                          "PolicReqPerOffic",
                          "PolicPerPop",
                          "RacialMatchCommPol",
-                         "PctPolicWhite",
-                         "PctPolicBlack",
-                         "PctPolicHisp",
-                         "PctPolicAsian",
-                         "PctPolicMinor",
+                         "Polic_PctWhite",
+                         "Polic_PctBlack",
+                         "Polic_PctHisp",
+                         "Polic_PctAsian",
+                         "Polic_PctMinor",
                          "OfficAssgnDrugUnits",
                          "NumKindsDrugsSeiz",
                          "PolicAveOTWorked",
@@ -158,16 +154,17 @@ class Communities_and_Crimes():
 
         self.ignore_columns = ['state', 'county', 'community', 'communityname', 'fold']
         self.target = 'ViolentCrimesPerPop'
-
+        
+        
         # sensitive information
-        self._race_columns = ['racepctblack', 'racePctWhite', 'racePctAsian', 'racePctAsian'] 
-        self._age_columns = ["agePct12t21", "agePct12t29", "agePct16t24", "agePct65up"]
-        self._employment_columns = ["pctWWage", "pctWFarmSelf",
-                                    "pctWInvInc", "pctWSocSec", "pctWPubAsst", "pctWRetire"]
-        self._marital_columns = ['MalePctDivorce', 'MalePctNevMarr', 'FemalePctDiv']
-        self._immegration_columns = ['PctImmigRecent', 'PctImmigRec5', 'PctImmigRec8', 'PctImmigRec10']
-        self._language_columns = ['PctSpeakEnglOnly', 'PctNotSpeakEnglWell']
-        self._police_race_columns = ["PctPolicWhite", "PctPolicBlack", "PctPolicHisp", "PctPolicAsian", "PctPolicMinor"] 
+        self._race_columns = ['race_Pctblack', 'race_PctWhite', 'race_PctAsian', 'race_PctAsian'] 
+        self._age_columns = ["age_Pct12t21", "age_Pct12t29", "age_Pct16t24", "age_Pct65up"]
+        self._employment_columns = ["pctW_Wage", "pctW_FarmSelf",
+                                    "pctW_InvInc", "pctW_SocSec", "pctW_PubAsst", "pctW_Retire"]
+        self._marital_columns = ['marital_MalePctDivorce', 'marital_MalePctNevMarr', 'marital_FemalePctDiv']
+        self._immegration_columns = ['Immig_PctRecent', 'Immig_PctRec5', 'Immig_PctRec8', 'Immig_PctRec10']
+        self._language_columns = ['language_PctSpeakEnglOnly', 'language_PctNotSpeakEnglOnly']
+        self._police_race_columns = ["Polic_PctWhite", "Polic_PctBlack", "Polic_PctHisp", "Polic_PctAsian", "Polic_PctMinor"] 
         
 
         self.categorical_attributes = [self.target] + \
@@ -179,7 +176,10 @@ class Communities_and_Crimes():
                                         self._language_columns + \
                                         self._police_race_columns
 
+
         self.continuous_attributes = [column for column in self._columns if column not in self.categorical_attributes and column not in self.ignore_columns]
+        # print(self.continuous_attributes)
+        self.mediator_attributes = ['perCapInc']
         self.verbose = verbose
 
     def get_df(self, repaired=False):
@@ -259,8 +259,12 @@ class Communities_and_Crimes():
         if(self.verbose):
             print("-number of samples: (before dropping nan rows)", len(df))
         
-        # drop rows with null values
-        # df = df.replace({'?', np.nan}, inplace=True)
+        # replace ? with min
+        for column in df.columns:
+            if("?" in df[column].unique()):
+                df[column] = df.apply(lambda x: df[column].min() if x[column] == '?' else x[column], axis=1)
+                df[column] = pd.to_numeric(df[column])
+                
         df = df.dropna()
         if(self.verbose):
             print("-number of samples: (after dropping nan rows)", len(df))

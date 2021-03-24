@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pandas as pd
+import os
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_iris 
@@ -9,6 +10,68 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from sklearn.tree import _tree
 from scipy.stats import norm
+
+
+# pgmpy
+from pgmpy.estimators import PC, HillClimbSearch, ExhaustiveSearch
+from pgmpy.estimators import K2Score
+from pgmpy.utils import get_example_model
+from pgmpy.sampling import BayesianModelSampling
+
+# notears
+import igraph as ig
+from numpy import genfromtxt
+import networkx as nx
+
+# draw
+import matplotlib.pyplot as plt
+
+
+
+def call_pgmpy(data):
+    
+    est = PC(data=data)
+    estimated_model = est.estimate(variant='orig', max_cond_vars=5)
+    return estimated_model
+
+def call_notears(data, regularizer = 0.01, timeout=100, verbose=True, filename="temp"):
+    """
+        Learn a DAG from data.
+        Output is a list of tuples (a,b) where b is conditionally dependent on a
+    """ 
+    assert isinstance(data, pd.DataFrame), "data must be a Pandas dataframe"
+
+    filename = "./" + filename
+    
+    data.to_csv(filename + "X.csv", index=False, header=None)
+    cmd = "timeout " + str(timeout) + " notears_linear --lambda1 " + str(regularizer) + " --W_path " + filename + "W_est.csv " + filename +  "X.csv"
+    os.system(cmd)
+
+    if(not os.path.isfile(filename + 'W_est.csv')):
+        print("Notears_linear did not terminate")
+        return []
+
+
+    
+    # construct weighted graphs
+    adjacency_matrix = genfromtxt(filename + 'W_est.csv', delimiter=',')
+
+    # remove temp files
+    os.system("rm " + filename + "W_est.csv " + filename +  "X.csv")
+
+    
+    # graph
+    iG = ig.Graph.Weighted_Adjacency(adjacency_matrix.tolist()) 
+
+
+    edges = []
+    for a,b in iG.get_edgelist():
+        edges.append((data.columns[a], data.columns[b]))
+
+    graph = nx.DiGraph()
+    graph.add_edges_from(edges)
+    return graph
+
 
 def get_population_model_fairsquare_format(data,sensitive_attribute):
 
@@ -448,12 +511,16 @@ def calculate_probs_linear_classifier_wrap(data, column_info):
     _attributes_cnt = 1
     for idx in range(len(data.columns)):
 
+        
         if(column_info[idx][0] == "Bin"):
             probs[_attributes_cnt] = round(data[data.columns[idx]].mean(), 3)
             if(probs[_attributes_cnt] == 0):
                 probs[_attributes_cnt] = 0.001
             elif(probs[_attributes_cnt] == 1):
                 probs[_attributes_cnt] = 0.999
+            elif(math.isnan(probs[_attributes_cnt])):
+                probs[_attributes_cnt] = 0.5
+                
 
             _attributes_cnt += 1
         
@@ -480,6 +547,8 @@ def calculate_probs_linear_classifier_wrap(data, column_info):
                     probs[_attributes_cnt] = 0.001
                 elif(probs[_attributes_cnt] == 1):
                     probs[_attributes_cnt] = 0.999
+                elif(math.isnan(probs[_attributes_cnt])):
+                    probs[_attributes_cnt] = 0.5
                 _attributes_cnt += 1
     
     
@@ -507,6 +576,61 @@ import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 import statsmodels.api as sm
+import math
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def draw_dependency(metric):
+    if(metric._graph_edges is None):
+        print("No Bayesian network is provided or learned")
+        return
+    
+
+    G = nx.DiGraph()
+    edges = []
+    edges = metric._graph_edges
+    G.add_edges_from(edges)
+    pos = nx.spring_layout(G, k=1)
+    for node in sorted(list(G.nodes)):
+        label = None
+        if(type(metric._variable_attribute_map[node]) == tuple):
+            if(metric._model_name in ["CNF"]):
+                label = metric._variable_attribute_map[node]
+            elif(metric._model_name == "dt"):
+                feature, threshold = metric._variable_attribute_map[node]
+                label = feature + " <= " + str(round(threshold, 2))
+            elif(metric._model_name == "lr" or metric._model_name == "svm-linear"):
+                feature, comparator_1, threshold_1, comparator_2, threshold_2 = metric._variable_attribute_map[node]
+                label = str(round(threshold_1, 2)) + " " + comparator_1 + " " + feature + " " + comparator_2 + " " + str(round(threshold_2, 2))
+                    
+            else:
+                raise ValueError
+        else:
+            label = metric._variable_attribute_map[node]
+
+        nx.draw_networkx_nodes(G, pos, node_color="white",  nodelist=[node], label=str(node) + ": " + label)
+    nx.draw_networkx_labels(G,pos)
+    nx.draw_networkx_edges(G, pos=pos)
+    plt.legend(bbox_to_anchor=(1.01, 1), loc='upper left', frameon=False)
+    plt.tight_layout()
+    return plt
+
+def draw_nx(G):
+    pos = nx.spring_layout(G, k=1)
+    dic = {}
+    for idx, node in enumerate(sorted(list(G.nodes))):
+        dic[node] = idx
+        nx.draw_networkx_nodes(G, pos, node_color="white",  nodelist=[node], label=str(idx) + ": " + node)
+    nx.draw_networkx_labels(G,pos, labels=dic)
+    nx.draw_networkx_edges(G, pos=pos)
+    plt.legend(bbox_to_anchor=(1.01, 1), loc='upper left', frameon=False)
+    plt.tight_layout()
+    return plt
+
+
+
 
 def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_attributes, discretizer = "equalWidth", verbose=False):
     
@@ -529,6 +653,7 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
     column_info = {}
     attribute_variable_map = {}
     variable_attribute_map = {}
+
     
     _attributes_cnt = 1
     _discretized_attributes_group = []
@@ -542,14 +667,14 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
             # check for sensitive attributes
             _is_sensitive_attribute = False
             for group_idx in range(len(known_sensitive_attributes)):
-                if(data.columns[idx].split("_")[0] in known_sensitive_attributes[group_idx]):
+                if(known_sensitive_attributes[group_idx].startswith(data.columns[idx].split("_")[0])):
                     sensitive_attributes[group_idx].append(_attributes_cnt)
                     _is_sensitive_attribute = True
                     variable_attribute_map[_attributes_cnt] = data.columns[idx]
                     attribute_variable_map[data.columns[idx]] = _attributes_cnt
                     break
 
-                elif(data.columns[idx] in known_sensitive_attributes[group_idx]):
+                elif(known_sensitive_attributes[group_idx].startswith(data.columns[idx])):
                     sensitive_attributes[group_idx].append(_attributes_cnt)
                     _is_sensitive_attribute = True
                     variable_attribute_map[_attributes_cnt] = data.columns[idx]
@@ -627,8 +752,15 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
                     histogram_mean_data_dependent.append(data[data.columns[idx]][(_binner_dict[i] <= data[data.columns[idx]]) & (data[data.columns[idx]] < _binner_dict[i+1])].mean())
                 histogram_prob.append(probs[_attributes_cnt])
 
+
                 # sample mean within bin-->
                 _threshold = histogram_mean_data_dependent[-1]
+                if(math.isnan(_threshold)):
+                    # if histogram_mean_data_dependent is nan, which means there is no point within that bin. 
+                    # In that case, we use histogram mean.
+                    _threshold = histogram_mean[-1]
+                    pass
+
                 calculated_weights.append(weights[idx] * _threshold) # multiplied by the mean
                 
                 _discretized_attributes_group[-1].append(_attributes_cnt)

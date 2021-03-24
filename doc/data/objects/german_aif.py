@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 class German():
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "german"
         if(config == 0):
             self.known_sensitive_attributes = ['age', 'sex']
         elif(config == 1):

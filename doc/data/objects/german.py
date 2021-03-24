@@ -6,6 +6,7 @@ from justicia import utils
 class German():
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "german"
         self.filename = "data/raw/german_credit_data.csv"
         
         if(config == 0):
@@ -17,11 +18,14 @@ class German():
             
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
         
         # only a limited number of columns are considered
         self.categorical_attributes = [ 'Sex', 'Housing', 'Checking account', 'Saving accounts', 'Purpose', 'target']
         self.continuous_attributes = ['Age', 'Job', 'Credit amount', 'Duration']
         self.verbose = verbose
+
+        self.mediator_attributes = ['Credit amount']
 
     def get_df(self, repaired = False):
 

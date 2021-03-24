@@ -7,6 +7,7 @@ from justicia import utils
 class Bank():
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "bank"
         self.filename = "data/raw/bank-additional-full.csv"
         if(config == 0):
             self.known_sensitive_attributes = ['age', 'marital']
@@ -16,6 +17,7 @@ class Bank():
             self.known_sensitive_attributes = ['marital']
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
         
         
         self.categorical_attributes = ['job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'day_of_week', 'poutcome', 'y']

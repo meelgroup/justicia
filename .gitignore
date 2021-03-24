@@ -17,3 +17,5 @@ justicia.egg-info/*
 build/*
 temp/*
 data/*
+sample.sdimacs*
+*/sample.sdimacs*

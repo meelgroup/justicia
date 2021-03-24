@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 class Compas():
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "compas"
         if(config == 0):
             self.known_sensitive_attributes = ['age']
         elif(config == 1):
@@ -18,13 +19,15 @@ class Compas():
         elif(config == 5):
             self.known_sensitive_attributes = ['sex', 'race']
         elif(config == 6):
-            self.known_sensitive_attributes = ['age', 'age', 'sex']    
+            self.known_sensitive_attributes = ['race', 'age', 'sex']    
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
         
         self.categorical_attributes = [ 'sex', 'race', 'age_25_to_45', 'age_Greater_than_45', 'age_Less_than_25', 'c_charge_degree_F', 'c_charge_degree_M', 'target']
         self.continuous_attributes = ['juv_fel_count', 'juv_misd_count', 'juv_other_count', 'priors_count']
         self.verbose = verbose
+        self.mediator_attributes = ['priors_count']
         
 
     def get_df(self, repaired = False):

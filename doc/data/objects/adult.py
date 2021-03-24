@@ -6,6 +6,7 @@ class Adult:
 
     def __init__(self, verbose = True, config = 0):
         self.filename = "data/raw/adult.csv"
+        self.name = "adult"
         # print("Adult dataset")
         if(config == 0):
             self.known_sensitive_attributes = ['race', 'sex']
@@ -23,6 +24,7 @@ class Adult:
             self.known_sensitive_attributes = ['sex', 'age']
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
         
         # only a limited number of columns are considered
         self.keep_columns = ['race', 'sex', 'age', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week','income-per-year'] 
@@ -30,6 +32,8 @@ class Adult:
                                       'relationship', 'native-country', 'target' ]
         self.continuous_attributes = ['age','capital-loss', 'education-num' ,'capital-gain','hours-per-week' ]
         self.verbose = verbose
+
+        self.mediator_attributes = ['education-num']
 
         if(verbose):
             print("Sensitive attributes:", self.known_sensitive_attributes)
@@ -76,5 +80,5 @@ class Adult:
         df = df.dropna()
         if(self.verbose):
             print("-number of samples: (after dropping nan rows)", len(df))
-            
+        
         return df

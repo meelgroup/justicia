@@ -5,6 +5,7 @@ from justicia import utils
 class Titanic:
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "titanic"
         self.filename = "data/raw/titanic.csv"
         # original columns = D#passenger_class,i#name,D#sex,C#age,D#siblings_or_spouces_aboard,D#parents_or_childred_aboard,i#ticket,C#fare,i#cabin,D#embarked,i#boat,i#body,i#home.dest,cD#survived
         # print("Titanic dataset")
@@ -24,6 +25,9 @@ class Titanic:
             self.known_sensitive_attributes = ['sex', 'passenger class', 'age']
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
+
+        self.mediator_attributes = ['fare']
         
         self.ignore_columns = ['name', 'ticket', 'cabin', 'boat', 'body', 'home destination'] 
         self.categorical_attributes = ['passenger class', 'sex',  'embarked', 'target']
@@ -49,7 +53,7 @@ class Titanic:
         if(self.verbose):
             print("-number of samples: (after dropping nan rows)", len(df))
         
-        assert len(self.categorical_attributes) + len(self.continuous_attributes) == len(df.columns), "Error in classifying columns"
+        assert len(self.categorical_attributes) + len(self.continuous_attributes) == len(df.columns), str(len(self.categorical_attributes)) + " "  + str(len(self.continuous_attributes))  + " " + str(len(df.columns)) 
 
         
         # scale 

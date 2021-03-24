@@ -4,6 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 class Ricci:
 
     def __init__(self, verbose = True, config = 0):
+        self.name = "ricci"
         self.filename = "data/raw/ricci.csv"
         # print("Ricci dataset")
 
@@ -15,11 +16,15 @@ class Ricci:
             self.known_sensitive_attributes = ['Position']
         else:
             raise ValueError(str(config)+ " is not a valid configuration for sensitive groups")
+        self.config = config
+        
         # only a limited number of columns are considered
         self.keep_columns = [ 'Position', 'Oral', 'Written', 'Race', 'Combine', 'Class' ]
-        self.categorical_attributes = [ 'Position', 'Race', 'Class']
+        self.categorical_attributes = [ 'Position', 'Race', 'target']
         self.continuous_attributes = ['Oral', 'Written', 'Combine']
         self.verbose = verbose
+
+        self.mediator_attributes = ['Combine']
 
     def get_df(self, repaired = False):
 
@@ -34,7 +39,9 @@ class Ricci:
         df[self.continuous_attributes] = scaler.fit_transform(df[self.continuous_attributes])
         
         df = df[self.keep_columns]
+        
         df.rename(columns={'Class':'target'}, inplace=True)
+        
         df['Race'] = df['Race'].map({"H" : 1, "W" : 0, "B" : 1})
         
         

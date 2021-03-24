@@ -18,6 +18,10 @@ import justicia.utils as utils
 from sklearn import metrics
 from data.objects import titanic as titanic_
 import numpy as np
+import os
+import pickle
+from datetime import datetime
+import random
 
 class linear_classifier_wrap_Wrapper():
 
@@ -38,6 +42,10 @@ class linear_classifier_wrap_Wrapper():
         self.num_attributes = len(weights)
         self.sensitive_attributes = sensitive_attributes
         self.attributes = attributes
+
+        self._store_benchmark = True
+        if(self._store_benchmark):
+            os.system("mkdir -p pseudo_Boolean_benchmarks")
 
 
         self._convert_weights_to_integers()
@@ -63,11 +71,31 @@ class linear_classifier_wrap_Wrapper():
         lits = [i+1 for i in range(len(self.attributes) + len([_var for _group in self.sensitive_attributes for _var in _group]))]
         if(negate):
             cnf = PBEnc.atmost(lits = lits, weights = self.weights,  bound = -1 * self.bias - 1, top_id = self.num_attributes)
+            
+            if(self._store_benchmark):
+                benchmark_file = "Justicia_" + str(len(self.weights)) + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000))
+                s = "* #variable= " + str(len(self.weights)) + " #constraint= 1\n"
+                s += (" ").join([b + " " + a for a,b in list(zip(["x" + str(i) for i in lits], ["+" + str(_weight) if _weight > 0 else "-" + str(-1*_weight) for _weight in self.weights]))] + ["<= " + str(-1 * self.bias)]) + ";\n"
+                fout = open("pseudo_Boolean_benchmarks/" + benchmark_file + ".opb", "w")
+                fout.write(s)
+                fout.close()
+                cnf.to_file("pseudo_Boolean_benchmarks/" + benchmark_file + ".cnf")
+        
         else:
             cnf = PBEnc.atleast(lits = lits, weights = self.weights,  bound = -1 * self.bias, top_id = self.num_attributes)
+
+            if(self._store_benchmark):
+                benchmark_file = "Justicia_" + str(len(self.weights)) + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000))
+                s = "* #variable= " + str(len(self.weights)) + " #constraint= 1\n"
+                s += (" ").join([b + " " + a for a,b in list(zip(["x" + str(i) for i in lits], ["+" + str(_weight) if _weight > 0 else "-" + str(-1*_weight) for _weight in self.weights]))] + [">= " + str(-1 * self.bias)]) + ";\n"
+                fout = open("pseudo_Boolean_benchmarks/" + benchmark_file + ".opb", "w")
+                fout.write(s)
+                fout.close()
+                cnf.to_file("pseudo_Boolean_benchmarks/" + benchmark_file + ".cnf")
+        
         self.classifier = cnf.clauses
         self.auxiliary_variables = [i for i in range(self.num_attributes + 1, cnf.nv + 1)]
-        self.num_attributes = cnf.nv
+        self.num_attributes = max(cnf.nv, self.num_attributes)
 
 
 
@@ -231,6 +259,9 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
     y_tests = []
     clfs = []
     
+    cnt = 0
+    os.system("mkdir -p data/model/")
+
     for train, test in skf.split(X, y):
 
         X_trains.append(X.iloc[train])
@@ -242,14 +273,42 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
         clf = None
 
         if(classifier == "lr"):
-            #  For linear classifier, we use Logistic regression model of sklearn
-            clf = LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0)
+            store_file = "data/model/LR_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            if(not os.path.isfile(store_file)):   
+                #  For linear classifier, we use Logistic regression model of sklearn
+                clf = LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0)
+                clf.fit(X_trains[-1], y_trains[-1])
+        
+                # save the classifier
+                with open(store_file, 'wb') as fid:
+                    pickle.dump(clf, fid)
+            
+            else:
+                # Load the classifier
+                with open(store_file, 'rb') as fid:
+                    clf = pickle.load(fid)
+
+
         elif(classifier == "svm-linear"):
-            clf = SVC(kernel="linear")
+            store_file = "data/model/SVM_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            if(not os.path.isfile(store_file)):   
+                #  For linear classifier, we use Logistic regression model of sklearn
+                clf = SVC(kernel="linear")
+                clf.fit(X_trains[-1], y_trains[-1])
+        
+                # save the classifier
+                with open(store_file, 'wb') as fid:
+                    pickle.dump(clf, fid)
+            
+            else:
+                # Load the classifier
+                with open(store_file, 'rb') as fid:
+                    clf = pickle.load(fid)
+
+            
         else:
             raise ValueError(classifier)
 
-        clf = clf.fit(X_trains[-1], y_trains[-1])
         clfs.append(clf)
 
         if(verbose):
@@ -263,6 +322,7 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
             print("Train Accuracy Score: ", clf.score(X_trains[-1], y_trains[-1]), "positive ratio: ",y_trains[-1].mean())
             print("Test Accuracy Score: ", clf.score(X_tests[-1], y_tests[-1]), "positive ratio: ",y_tests[-1].mean())
 
+        cnt += 1
     
     if(compute_equalized_odds):
         return clfs, X_trains, X_tests, dataset.known_sensitive_attributes, y_trains, y_tests

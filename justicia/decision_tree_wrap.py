@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.tree import _tree
 from sklearn.model_selection import train_test_split, KFold
 from sklearn import metrics 
+import math
 # from fairness_comparison.fairness.data.objects.ProcessedData import ProcessedData
 # from fairness_comparison.fairness.data.objects.Adult import Adult
 import pandas as pd
@@ -20,14 +21,17 @@ from data.objects import ricci as ricci_
 # from fairness_comparison.fairness.data.objects import Ricci
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV
+import os
+import pickle
 
 
 
 class dtWrapper():
 
-    def __init__(self, DecisionTreeClassifier, data_features_original, sensitive_attributes, negate = False,  verbose = True):
+    def __init__(self, DecisionTreeClassifier, data, data_features_original, sensitive_attributes, negate = False,  verbose = True):
 
         self.nodes = []
+        self.data = data
         self.paths = [] # a DNF formula, only capture when the leaf is 1
         self.tree_to_code(DecisionTreeClassifier, data_features_original, negate, verbose = verbose)
 
@@ -64,7 +68,11 @@ class dtWrapper():
                 self.variable_attribute_map[cnt] = (feature, threshold)
                 for i in range(len(sensitive_attributes)):
                     if(feature in sensitive_attributes[i]):
-                        self.sensitive_attributes[i].append(cnt)
+                        """
+                        Each sensitive attribute is complemented because the node in the tree
+                        denotes complement, i.e., x <= 0.5
+                        """
+                        self.sensitive_attributes[i].append(-1 * cnt)
                         
     
                 cnt += 1
@@ -76,13 +84,15 @@ class dtWrapper():
 
         
         # It may happen that all sensitive attributes are not preset in the decision tree
+        # In that case, we use attribute mean as threshold
         for _sensitive_attribute in _sensitive_attributes:
             if(_sensitive_attribute not in _visited_sensitive_attributes):
-                self.attribute_variable_map[(_sensitive_attribute, 0.5)] = cnt
-                self.variable_attribute_map[cnt] = (_sensitive_attribute, 0.5)
+                attribute_mean = round(self.data[_sensitive_attribute].mean(), 2)
+                self.attribute_variable_map[(_sensitive_attribute, attribute_mean)] = cnt
+                self.variable_attribute_map[cnt] = (_sensitive_attribute, attribute_mean)
                 for i in range(len(sensitive_attributes)):
                     if(_sensitive_attribute in sensitive_attributes[i]):
-                        self.sensitive_attributes[i].append(cnt)
+                        self.sensitive_attributes[i].append(-1 * cnt)
                 self.num_attributes += 1
                 cnt += 1
             # else:
@@ -129,8 +139,13 @@ class dtWrapper():
                 probs[self.attribute_variable_map[key]] = 0.001
             elif(probs[self.attribute_variable_map[key]] == 1):
                 probs[self.attribute_variable_map[key]] = 0.999
+            elif(math.isnan(probs[self.attribute_variable_map[key]])):
+                probs[self.attribute_variable_map[key]] = 0.5
+
             if(verbose):
                 print(feature, "<=" ,threshold, " has probability: " , probs[self.attribute_variable_map[key]], " and assigned variable is:", self.attribute_variable_map[key])
+        if(verbose):
+            print("\n\n\n")
         return probs
 
 
@@ -406,7 +421,7 @@ def init_synthetic():
 
 
 
-def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False):
+def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False, depth=5):
     
     df = dataset.get_df(repaired=repaired)
 
@@ -430,7 +445,9 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
     X_tests = []
     y_tests = []
     clfs = []
-    
+
+    os.system("mkdir -p data/model/")
+    cnt = 0
     for train, test in skf.split(X, y):
 
         X_trains.append(X.iloc[train])
@@ -438,15 +455,24 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
         X_tests.append(X.iloc[test])
         y_tests.append(y.iloc[test])
     
-    
 
-        # apply gridsearch
-        param_grid = {'max_depth': np.arange(2, 10)}
-        grid_tree = GridSearchCV(tree.DecisionTreeClassifier(), param_grid)
-        grid_tree.fit(X_trains[-1], y_trains[-1])
-        tree_preds = grid_tree.predict_proba(X_tests[-1])[:, 1]
-        tree_performance = roc_auc_score(y_tests[-1], tree_preds)
-        clf = grid_tree.best_estimator_
+        store_file = "data/model/DT_" + dataset.name + "_" + str(dataset.config) + "_" + str(depth) + "_" + str(cnt) + ".pkl"
+        if(not os.path.isfile(store_file)):   
+
+            clf = tree.DecisionTreeClassifier(max_depth=depth)
+            clf.fit(X_trains[-1], y_trains[-1])
+            tree_preds = clf.predict_proba(X_tests[-1])[:, 1]
+
+            # save the classifier
+            with open(store_file, 'wb') as fid:
+                pickle.dump(clf, fid)
+        
+        else:
+            # Load the classifier
+            with open(store_file, 'rb') as fid:
+                clf = pickle.load(fid)
+
+
         clfs.append(clf)
 
 
@@ -457,18 +483,12 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
     
 
         if(verbose):
-            print("\nTraining result =>")
-            print('dt: Area under the ROC curve = {}'.format(tree_performance))
-            
-            # getting the best models:
-            print(grid_tree.best_params_)
-            
             print("\nTrain accuracy:",metrics.accuracy_score(y_trains[-1], predict_train), "positive ratio: ",y_trains[-1].mean())
             print("Test accuracy:",metrics.accuracy_score(y_tests[-1], predict_test), "positive ratio: ",y_tests[-1].mean())
             print("Train set positive prediction",predict_train.mean())
             print("Test set positive prediction",predict_test.mean())
 
-
+        cnt += 1
        
 
 
