@@ -70,8 +70,34 @@ def call_notears(data, regularizer = 0.01, timeout=100, verbose=True, filename="
 
     graph = nx.DiGraph()
     graph.add_edges_from(edges)
-    return graph
+    return 
+    
+def select_encoding(model_name, encoding, verbose):
 
+    if(model_name in ["linear-model", "decision-tree"]):
+        forwarded_encoding_dic = {
+                'Learn' : 'Learn-efficient',
+                'Learn-dependency' : 'Learn-efficient-dependency',
+                'Learn-correlation' : 'Learn-efficient-correlation'
+            }
+
+        if(encoding in forwarded_encoding_dic):
+            if(verbose):
+                print(encoding, "encoding is solved based on", forwarded_encoding_dic[encoding], "encoding")
+            encoding = forwarded_encoding_dic[encoding]
+    elif(model_name in ["CNF"]):
+        forwarded_encoding_dic = {
+            'Learn-efficient' : 'Learn',
+            'Learn-efficient-correlation' : 'Learn-correlation',
+            'Learn-efficient-dependency' : 'Learn-dependency'
+        }
+
+        if(encoding in forwarded_encoding_dic):
+            if(verbose):
+                print(encoding, "encoding is solved based on", forwarded_encoding_dic[encoding], "encoding")
+            encoding = forwarded_encoding_dic[encoding]
+
+    return encoding
 
 def get_population_model_fairsquare_format(data,sensitive_attribute):
 
@@ -420,6 +446,8 @@ def get_one_hot_encoded_df(df, columns_to_one_hot, verbose = False):
     """  
     Apply one-hot encoding on categircal df and return the df
     """
+    if(verbose):
+        print("\n\nApply one-hot encoding on categircal attributes")
     for column in columns_to_one_hot:
         if(column not in df.columns.to_list()):
             if(verbose):
@@ -430,6 +458,9 @@ def get_one_hot_encoded_df(df, columns_to_one_hot, verbose = False):
         unique_categories = df[column].unique()
         if(len(unique_categories) > 2):
             one_hot = pd.get_dummies(df[column])
+            if(verbose):
+                print(column, " has more than two unique categories", one_hot.columns.to_list())
+
             if(len(one_hot.columns)>1):
                 one_hot.columns = [column + "_" + str(c) for c in one_hot.columns]
             else:
@@ -438,11 +469,15 @@ def get_one_hot_encoded_df(df, columns_to_one_hot, verbose = False):
             df = df.join(one_hot)
         else:
             if(0 in unique_categories and 1 in unique_categories):
+                if(verbose):
+                    print(column, " has categories 1 and 0")
+
                 continue
             df[column] = df[column].map({unique_categories[0]: 0, unique_categories[1]: 1})
             if(verbose):
                 print("Applying following mapping on attribute", column, "=>", unique_categories[0], ":",  0, "|", unique_categories[1], ":", 1)
-            
+    if(verbose):
+        print("\n")
     return df
 
 
@@ -598,10 +633,10 @@ def draw_dependency(metric):
         if(type(metric._variable_attribute_map[node]) == tuple):
             if(metric._model_name in ["CNF"]):
                 label = metric._variable_attribute_map[node]
-            elif(metric._model_name == "dt"):
+            elif(metric._model_name == "decision-tree"):
                 feature, threshold = metric._variable_attribute_map[node]
                 label = feature + " <= " + str(round(threshold, 2))
-            elif(metric._model_name == "lr" or metric._model_name == "svm-linear"):
+            elif(metric._model_name == "linear-model"):
                 feature, comparator_1, threshold_1, comparator_2, threshold_2 = metric._variable_attribute_map[node]
                 label = str(round(threshold_1, 2)) + " " + comparator_1 + " " + feature + " " + comparator_2 + " " + str(round(threshold_2, 2))
                     

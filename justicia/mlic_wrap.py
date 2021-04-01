@@ -7,9 +7,16 @@ import os
 import pickle
 
 
-def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False, thread=0):
+def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False, thread=0, remove_column = None):
 
     df = dataset.get_df(repaired=repaired)
+
+    if(remove_column is not None):
+        assert isinstance(remove_column, str)
+        df = df.drop([remove_column], axis=1)
+        if(remove_column in dataset.continuous_attributes):
+            dataset.continuous_attributes.remove(remove_column)
+
 
     # discretize
     data =  utils.get_discretized_df(df, columns_to_discretize=dataset.continuous_attributes, verbose=verbose)
@@ -43,7 +50,11 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
         X_tests.append(X.iloc[test])
         y_tests.append(y.iloc[test])
 
-        store_file = "data/model/CNF_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+        if(remove_column is None):
+            store_file = "data/model/CNF_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+        else:
+            store_file = "data/model/CNF_" + dataset.name + "_remove_" + remove_column.replace(" ", "_") + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+        
         if(not os.path.isfile(store_file)): 
             os.system("mkdir -p data/temp_" + str(thread))  
             clf = imli(num_clause=2, data_fidelity=10, work_dir="data/temp_" + str(thread), rule_type="CNF", verbose=False)    

@@ -235,7 +235,7 @@ def init_synthetic():
 
 
 
-def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_equalized_odds = False):
+def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_equalized_odds = False, remove_column = None):
     df = dataset.get_df(repaired=repaired)
 
     # discretize
@@ -244,6 +244,11 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
     # get X,y
     X = df.drop(['target'], axis=1)
     y = df['target']
+
+    if(remove_column is not None):
+        assert isinstance(remove_column, str)
+        X = X.drop([remove_column], axis=1)
+
 
     # one-hot
     X = utils.get_one_hot_encoded_df(X,dataset.categorical_attributes)
@@ -273,7 +278,11 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
         clf = None
 
         if(classifier == "lr"):
-            store_file = "data/model/LR_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            if(remove_column is None):
+                store_file = "data/model/LR_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            else:
+                store_file = "data/model/LR_" + dataset.name + "_remove_" + remove_column.replace(" ", "_") + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            
             if(not os.path.isfile(store_file)):   
                 #  For linear classifier, we use Logistic regression model of sklearn
                 clf = LogisticRegression(class_weight='balanced', solver='liblinear', random_state=0)
@@ -290,7 +299,10 @@ def init(dataset, classifier = "lr", repaired=False, verbose = False, compute_eq
 
 
         elif(classifier == "svm-linear"):
-            store_file = "data/model/SVM_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            if(remove_column is None):
+                store_file = "data/model/SVM_" + dataset.name + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
+            else:
+                store_file = "data/model/SVM_" + dataset.name + "_remove_" + remove_column.replace(" ", "_") + "_" + str(dataset.config) + "_" +  str(cnt) + ".pkl"
             if(not os.path.isfile(store_file)):   
                 #  For linear classifier, we use Logistic regression model of sklearn
                 clf = SVC(kernel="linear")

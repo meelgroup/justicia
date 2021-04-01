@@ -147,6 +147,9 @@ def call_pgmpy(metrics_object):
 def _call_notears(data, sensitive_attributes, regularizer = 0.01, verbose=True, filename="temp"):
     """returns a Dependency structure: list of dependencies of the form a -> b where a is a tuple of parents"""
     
+    # flatten to 1d list
+    flatten_sensitive_attributes = [abs(_var) for _group in sensitive_attributes for _var in _group]
+
     filename = "./" + filename
     
     data.to_csv(filename + "X.csv", index=False, header=None)
@@ -178,7 +181,7 @@ def _call_notears(data, sensitive_attributes, regularizer = 0.01, verbose=True, 
         print("\nLearned graph")
         print(iG)
     for a,b in iG.get_edgelist():
-        if(b + 1 in sensitive_attributes):
+        if(b + 1 in flatten_sensitive_attributes):
             if(verbose):
                 print((a,b), " found edges incident on sensitive variable")
             iG.delete_edges([(a,b)])
@@ -213,6 +216,7 @@ def _call_notears(data, sensitive_attributes, regularizer = 0.01, verbose=True, 
         b += 1
         edges.append((a,b))
 
+        
     return do_combinations(edges), edges, True
     
 
@@ -253,17 +257,21 @@ def Bayesian_estimate(data, dependency_structure, graph_edges):
 
 
 
+def refine_dependency_constraints(sensitive_attributes, edges):
+    """
+    If there is an incidenet edge to a sensitive variables, it should be removed. Because sensitive 
+    variables are already existentially quantified, so no randomness is involved
+    """
+    # flatten to 1d list
+    all_sensitive_attributes = [abs(_var) for _group in sensitive_attributes for _var in _group]
 
-
-
+    result = []
+    for a,b in edges:
+        if(b in all_sensitive_attributes or -1 * b in all_sensitive_attributes):
+            # print((a,b), "is removed")
+            continue
+        result.append((a,b))
     
+    return result
 
-
-            
-
-    
-
-
-        
-    
 

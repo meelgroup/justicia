@@ -421,7 +421,7 @@ def init_synthetic():
 
 
 
-def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False, depth=5):
+def init(dataset, repaired=False, verbose = False, compute_equalized_odds = False, depth=5, remove_column = None):
     
     df = dataset.get_df(repaired=repaired)
 
@@ -430,6 +430,10 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
     # get X,y
     X = df.drop(['target'], axis=1)
     y = df['target']
+
+    if(remove_column is not None):
+        assert isinstance(remove_column, str)
+        X = X.drop([remove_column], axis=1)
 
 
 
@@ -455,8 +459,11 @@ def init(dataset, repaired=False, verbose = False, compute_equalized_odds = Fals
         X_tests.append(X.iloc[test])
         y_tests.append(y.iloc[test])
     
-
-        store_file = "data/model/DT_" + dataset.name + "_" + str(dataset.config) + "_" + str(depth) + "_" + str(cnt) + ".pkl"
+        if(remove_column is None):
+            store_file = "data/model/DT_" + dataset.name + "_" + str(dataset.config) + "_" + str(depth) + "_" + str(cnt) + ".pkl"
+        else:
+            store_file = "data/model/DT_" + dataset.name + "_remove_" + remove_column.replace(" ", "_") + "_" + str(dataset.config) + "_" + str(depth) + "_" + str(cnt) + ".pkl"
+        
         if(not os.path.isfile(store_file)):   
 
             clf = tree.DecisionTreeClassifier(max_depth=depth)

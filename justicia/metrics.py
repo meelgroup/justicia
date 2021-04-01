@@ -53,6 +53,7 @@ class Metric():
         
         # preprocessing
         start_time = time.time()
+        self.encoding = utils.select_encoding(self._model_name, self.encoding, self._verbose)
         self._get_required_params()
         self.time_taken = time.time() - start_time
         
@@ -105,6 +106,7 @@ class Metric():
 
         # when y = 0
         self._data = full_data[y == 0]
+        self.sensitive_group_statistics = []
         self._get_required_params()
         self.compute()
         result_DI.append(self.disparate_impact_ratio)
@@ -132,6 +134,9 @@ class Metric():
 
 
 
+    
+
+
 
         
         
@@ -141,7 +146,7 @@ class Metric():
         # Some variables which are required later
         self._num_attributes_neg = None
         
-        if(self._model_name == "lr" or self._model_name == "svm-linear"):
+        if(self._model_name == "linear-model"):
 
             self._given_weights = self.model.coef_[0]
 
@@ -191,17 +196,6 @@ class Metric():
                 if(self.encoding != "Enum-correlation"):
                     print("\nprobabilities:", self._probs)
 
-            forwarded_encoding_dic = {
-                'Learn' : 'Learn-efficient',
-                'Learn-dependency' : 'Learn-dependency',
-                'Learn-correlation' : 'Learn-efficient-correlation'
-            }
-
-            if(self.encoding in forwarded_encoding_dic):
-                if(self._verbose):
-                    print(self.encoding, "encoding is solved based on", forwarded_encoding_dic[self.encoding], "encoding")
-                self.encoding = forwarded_encoding_dic[self.encoding]
-
 
                 
             # if("correlation" in self.encoding or "dependency" in self.encoding or "efficient" in self.encoding):
@@ -214,7 +208,7 @@ class Metric():
                 self._auxiliary_variables_neg = lr_neg.auxiliary_variables
 
 
-        elif(self._model_name == "dt"):
+        elif(self._model_name == "decision-tree"):
             # print(self._data.columns)
             _sensitive_attributes = utils.get_sensitive_attibutes(self.given_sensitive_attributes, self._data.columns.to_list())
             dt_pos = dtWrapper(self.model,self._data, self._data.columns.tolist(), _sensitive_attributes, verbose=self._verbose)
@@ -253,17 +247,7 @@ class Metric():
 
             assert self._num_attributes == len(self._data.columns)
 
-            forwarded_encoding_dic = {
-                'Learn-efficient' : 'Learn',
-                'Learn-efficient-correlation' : 'Learn-correlation',
-                'Learn-efficient-dependency' : 'Learn-dependency'
-            }
-
-            if(self.encoding in forwarded_encoding_dic):
-                if(self._verbose):
-                    print(self.encoding, "encoding is solved based on", forwarded_encoding_dic[self.encoding], "encoding")
-                self.encoding = forwarded_encoding_dic[self.encoding]
-
+            
                 
                 
         else:
@@ -325,7 +309,7 @@ class Metric():
                 if(self._given_dependency_graph is None):
                     # Learn DAG
                     notears_time_start = time.time()
-                    edges, self._graph_edges, flag = dependency_utils._call_notears(self._transform(self._data.copy()), all_sensitive_attributes, regularizer=self._notears_regularizer, verbose=self._verbose, filename=self._filename)
+                    edges, self._graph_edges, flag = dependency_utils._call_notears(self._transform(self._data.copy()), self._sensitive_attributes, regularizer=self._notears_regularizer, verbose=self._verbose, filename=self._filename)
                     self._time_taken_notears = time.time() - notears_time_start
                     if(not flag):
                         self._execution_error = True
@@ -334,12 +318,12 @@ class Metric():
                     # edges, self._graph_edges = dependency_utils.default_dependency(all_sensitive_attributes, self._attributes)
 
                 else:
-                    # Use provided dependency
+                    # Use provided dependency graph
                     edges, self._graph_edges = self._construct_edges_from_given_dependency()
-                    pass
+                    
                 
             # refine dependency constraints
-            edges = self.refine_dependency_constraints(edges)   
+            # edges = dependency_utils.refine_dependency_constraints(self._sensitive_attributes, edges)   
             
             # parameter estimate
             Bayesian_weight_estimate = False
@@ -467,126 +451,6 @@ class Metric():
 
 
 
-    def refine_dependency_constraints(self, edges):
-        """
-        If there is an incidenet edge to a sensitive variables, it should be removed. Because sensitive 
-        variables are already existentially quantified, so no randomness is involved
-        """
-        # flatten to 1d list
-        all_sensitive_attributes = [abs(_var) for _group in self._sensitive_attributes for _var in _group]
-
-        result = []
-        for a,b in edges:
-            if(b in all_sensitive_attributes or -1 * b in all_sensitive_attributes):
-                continue
-            result.append((a,b))
-        
-        return result
-
-
-    def _construct_edges_from_given_dependency(self):
-        """
-            Given edge information is for original attributes. We convert them to SSAT variables. 
-            For a real-valued attribute, its discretized variables are used. Hence, each dependency tuple is multiplied for 
-            all combinations of discretized attributes.
-        """
-
-
-        # complement variable_attribute_map
-        attribute_variable_map = {}
-        for key in self._variable_attribute_map:
-            # Each variable in SSAT should map unique attribute in input space
-            assert self._variable_attribute_map[key] not in attribute_variable_map
-            attribute_variable_map[self._variable_attribute_map[key]] = key
-
-        """
-            Refine user provided dependency graph for the following reasons. 
-                1. If there is an incomding edge to a sensitive variable, we reverse the edge direction. Because, in our encoding all
-                   sensitive variables are existentially quantified and thus their fixed (also permutation) assignment are considered. 
-        """
-        # TODO bad implementation. Iterates all sensitive attributes for each edge in given_dependency_graph
-
-        if(self._verbose):
-            print("\nRefining given dependency graph")
-            print(self._given_dependency_graph.edges())
-        
-        new_edges = []
-        deleted_edges = []
-        original_edges = self._given_dependency_graph.edges()
-        for a,b in original_edges:
-            if b in self.given_sensitive_attributes:
-                # reverse edge
-                new_edges.append((b,a))
-                deleted_edges.append((a,b))
-                if(self._verbose):
-                    print("Reversed edge: ", b, "->", a)
-                continue
-            reach_count = 0
-            for sensitive_attribute in self.given_sensitive_attributes:
-                if b.startswith(sensitive_attribute) and "_" in b:
-                    new_edges.append((b,a))
-                    deleted_edges.append((a,b))
-                    if(self._verbose):
-                        print("Reversed edge: ", b, "->", a)
-                        
-            assert reach_count < 2, str(self.given_sensitive_attributes) + " has more than one matching for " + str(b)
-
-            # # Else keep original edge
-            # if(reach_count == 0):
-            #     result.append((a,b))
-
-        # refinement
-        if(len(new_edges) > 0):
-            self._given_dependency_graph.remove_edges_from(deleted_edges)
-            self._given_dependency_graph.add_edges_from(new_edges)
-            
-
-        # Map original attribute to discretized variables
-        attribute_dic = {} 
-        for attribute in attribute_variable_map:
-            _feature = None
-            if(type(attribute) == tuple):
-                if(self._model_name == "dt"):
-                    (_feature, _threshold) = attribute
-
-                elif(self._model_name == "lr" or self._model_name == "svm-linear"):
-                    _feature, _, _threshold_1, _comparator_2, _threshold_2 = attribute
-                else:
-                    raise ValueError(self._model_name)
-            else:
-                _feature = attribute
-            
-            
-            for node in self._given_dependency_graph.nodes():
-                if(_feature.startswith(node)): 
-                    if(node in attribute_dic):
-                        attribute_dic[node].append(attribute_variable_map[attribute])
-                    else:
-                        attribute_dic[node] = [attribute_variable_map[attribute]]
-
-        # print("\nattribute variable map:", attribute_variable_map)
-        # print("\nattribute to var map", attribute_dic)
-
-
-        # Consider all combinations of discretized variables
-        edges = []
-        for a, b in self._given_dependency_graph.edges():
-            if(a in attribute_dic and b in attribute_dic):
-                for var_a in attribute_dic[a]:
-                    for var_b in attribute_dic[b]:
-                        edges.append((var_a, var_b))
-            else:
-                # attributes not participating in classifier, hence not considered
-                pass
-        # print()
-        # print(edges)
-        
-        edges = self.refine_dependency_constraints(edges)
-        # print()
-        # print(edges)
-        
-        return dependency_utils.do_combinations(edges), edges
-
     def _run_Enum(self, dependency_constraints=[]):
 
         if(self._verbose):
@@ -636,17 +500,17 @@ class Metric():
         result = {}
         for var in configuration:
             if var > 0:
-                if(self._model_name in ["lr", "CNF", "svm-linear"]):
+                if(self._model_name in ["linear-model", "CNF"]):
                     result[self._variable_attribute_map[var]] = 1
-                elif(self._model_name == "dt"):
+                elif(self._model_name == "decision-tree"):
                     (_feature, _threshold) = self._variable_attribute_map[var]
                     result[_feature] = 0
                 else:
                     raise ValueError
             else:
-                if(self._model_name in ["lr", "CNF", "svm-linear"]):
+                if(self._model_name in ["linear-model", "CNF"]):
                     result[self._variable_attribute_map[-1 * var]] = 0
-                elif(self._model_name == "dt"):
+                elif(self._model_name == "decision-tree"):
                     (_feature, _threshold) = self._variable_attribute_map[-1 * var]
                     result[_feature] = 1
                 else:
@@ -768,11 +632,11 @@ class Metric():
         
         for var in self._variable_attribute_map:
             if(type(self._variable_attribute_map[var]) == tuple):
-                if(self._model_name == "dt"):
+                if(self._model_name == "decision-tree"):
                     (_feature, _threshold) = self._variable_attribute_map[var]
                     if(_feature in self.given_mediator_attributes):
                         self._mediator_attributes.append(var)
-                elif(self._model_name == "lr" or self._model_name == "svm-linear"):
+                elif(self._model_name == "linear-model"):
                     _feature, _, _threshold_1, _comparator_2, _threshold_2 = self._variable_attribute_map[var]
                     if(_feature in self.given_mediator_attributes):
                         self._mediator_attributes.append(var)
@@ -797,9 +661,9 @@ class Metric():
         
         # compute probabilities of mediator variables for the major group
         mediator_probs = None
-        if(self._model_name == "dt"):
+        if(self._model_name == "decision-tree"):
             mediator_probs = self._saved_dt_model.compute_probability(self._data[mask], verbose=False)
-        elif(self._model_name in ["lr", "CNF", "svm-linear"]):
+        elif(self._model_name in ["linear-model", "CNF"]):
             mediator_probs = utils.calculate_probs_linear_classifier_wrap(self._data[mask], self._column_info)
         else:
             raise ValueError
@@ -822,11 +686,6 @@ class Metric():
             print("\n\n\n")
         
 
-        
-        
-
-
-
     def _transform(self, orig_df):
 
         if(self._model_name == "CNF"):
@@ -835,10 +694,10 @@ class Metric():
         df = pd.DataFrame()
         for variable in self._variable_attribute_map:
             if(type(self._variable_attribute_map[variable]) == tuple):
-                if(self._model_name == "dt"):
+                if(self._model_name == "decision-tree"):
                     (_feature, _threshold) = self._variable_attribute_map[variable]
                     df[variable] = (orig_df[_feature] <= _threshold).astype(int)
-                elif(self._model_name == "lr" or self._model_name == "svm-linear"):
+                elif(self._model_name == "linear-model"):
                     _feature, _, _threshold_1, _comparator_2, _threshold_2 = self._variable_attribute_map[variable]
                     if(_comparator_2 == "<"):
                         df[variable] =  ((orig_df[_feature] >= _threshold_1) & (orig_df[_feature] < _threshold_2)).astype(int)
@@ -866,10 +725,10 @@ class Metric():
             dominating_var = -1 * dominating_var
 
         if(type(self._variable_attribute_map[dominating_var]) == tuple):
-            if(self._model_name == "dt"):
+            if(self._model_name == "decision-tree"):
                 (_feature, _threshold) = self._variable_attribute_map[dominating_var]
                 mask = mask & (self._data[_feature] <= _threshold)
-            elif(self._model_name == "lr" or self._model_name == "svm-linear"):
+            elif(self._model_name == "linear-model"):
                 _feature, _, _threshold_1, _comparator_2, _threshold_2 = self._variable_attribute_map[dominating_var]
                 if(_comparator_2 == "<"):
                     mask = mask & (self._data[_feature] >= _threshold_1) & (self._data[_feature] < _threshold_2)
@@ -909,9 +768,9 @@ class Metric():
             
                   
             
-            if(self._model_name == "dt"):
+            if(self._model_name == "decision-tree"):
                 marginal_probs = self._saved_dt_model.compute_probability(self._data[mask], verbose=False)
-            elif(self._model_name in ["lr", "CNF", "svm-linear"]):
+            elif(self._model_name in ["linear-model", "CNF"]):
                 marginal_probs = utils.calculate_probs_linear_classifier_wrap(self._data[mask], self._column_info)
             else:
                 raise ValueError
@@ -951,9 +810,9 @@ class Metric():
             
                 
 
-            if(self._model_name == "dt"):
+            if(self._model_name == "decision-tree"):
                 self._probs = self._saved_dt_model.compute_probability(self._data[mask], verbose=False)
-            elif(self._model_name in ["lr", "CNF", "svm-linear"]):
+            elif(self._model_name in ["linear-model", "CNF"]):
                 self._probs = utils.calculate_probs_linear_classifier_wrap(self._data[mask], self._column_info)
             else:
                 raise ValueError
@@ -991,11 +850,134 @@ class Metric():
         if(isinstance(self.model,imli)):
             return "CNF"
         if(isinstance(self.model, DecisionTreeClassifier)):
-            return "dt"
+            return "decision-tree"
         if(isinstance(self.model, SVC)):
-            return "svm-linear"
+            return "linear-model"
         if(isinstance(self.model, LogisticRegression)):
-            return "lr"
+            return "linear-model"
         if(isinstance(self.model, Poison_Model)):
-            return "lr"
+            return "linear-model"
         raise ValueError(str(self.model) + " not supported in Justicia")
+
+
+
+    def _construct_edges_from_given_dependency(self):
+        """
+            Given edge information is for original attributes. We convert them to SSAT variables. 
+            For a real-valued attribute, its discretized variables are used. Hence, each dependency tuple is multiplied for 
+            all combinations of discretized attributes.
+        """
+
+
+        # complement variable_attribute_map
+        attribute_variable_map = {}
+        for key in self._variable_attribute_map:
+            # Each variable in SSAT should map unique attribute in input space
+            assert self._variable_attribute_map[key] not in attribute_variable_map
+            attribute_variable_map[self._variable_attribute_map[key]] = key
+
+        """
+            Refine user provided dependency graph for the following reasons. 
+                1. If there is an incomding edge to a sensitive variable, we reverse the edge direction. Because, in our encoding all
+                    sensitive variables are existentially quantified and thus their fixed (also permutation) assignment are considered. 
+        """
+        # TODO bad implementation. Iterates all sensitive attributes for each edge in given_dependency_graph
+
+        if(self._verbose):
+            print("\nRefining given dependency graph")
+            print(self._given_dependency_graph.edges())
+        
+        new_edges = []
+        deleted_edges = []
+        original_edges = self._given_dependency_graph.edges()
+        for a,b in original_edges:
+            if b in self.given_sensitive_attributes:
+                # reverse edge
+                new_edges.append((b,a))
+                deleted_edges.append((a,b))
+                if(self._verbose):
+                    print("Reversed edge: ", b, "->", a)
+                continue
+            reach_count = 0
+            for sensitive_attribute in self.given_sensitive_attributes:
+                if b.startswith(sensitive_attribute) and "_" in b:
+                    new_edges.append((b,a))
+                    deleted_edges.append((a,b))
+                    if(self._verbose):
+                        print("Reversed edge: ", b, "->", a)
+                        
+            assert reach_count < 2, str(self.given_sensitive_attributes) + " has more than one matching for " + str(b)
+
+            # # Else keep original edge
+            # if(reach_count == 0):
+            #     result.append((a,b))
+
+        # refinement
+        if(len(new_edges) > 0):
+            self._given_dependency_graph.remove_edges_from(deleted_edges)
+            self._given_dependency_graph.add_edges_from(new_edges)
+            
+
+        # Map original attribute to discretized variables
+        attribute_dic = {} 
+        for attribute in attribute_variable_map:
+            _feature = None
+            if(type(attribute) == tuple):
+                if(self._model_name == "decision-tree"):
+                    (_feature, _threshold) = attribute
+
+                elif(self._model_name == "linear-model"):
+                    _feature, _, _threshold_1, _comparator_2, _threshold_2 = attribute
+                else:
+                    raise ValueError(self._model_name)
+            else:
+                _feature = attribute
+            
+            
+            for node in self._given_dependency_graph.nodes():
+                if(_feature.startswith(node)): 
+                    if(node in attribute_dic):
+                        attribute_dic[node].append(attribute_variable_map[attribute])
+                    else:
+                        attribute_dic[node] = [attribute_variable_map[attribute]]
+
+        # print("\nattribute variable map:", attribute_variable_map)
+        # print("\nattribute to var map", attribute_dic)
+
+
+        # Consider all combinations of discretized variables
+        edges = []
+        for a, b in self._given_dependency_graph.edges():
+            if(a in attribute_dic and b in attribute_dic):
+                for var_a in attribute_dic[a]:
+                    for var_b in attribute_dic[b]:
+                        edges.append((var_a, var_b))
+            else:
+                # attributes not participating in classifier, hence not considered
+                pass
+        # print()
+        # print(edges)
+        
+        edges = dependency_utils.refine_dependency_constraints(self._sensitive_attributes, edges)
+        # print()
+        # print(edges)
+        return dependency_utils.do_combinations(edges), edges
+
+
+
+
+
+
+
+
+    
+
+
+            
+
+    
+
+
+        
+    
+
