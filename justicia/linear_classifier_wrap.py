@@ -43,7 +43,7 @@ class linear_classifier_wrap_Wrapper():
         self.sensitive_attributes = sensitive_attributes
         self.attributes = attributes
 
-        self._store_benchmark = True
+        self._store_benchmark = False
         if(self._store_benchmark):
             os.system("mkdir -p pseudo_Boolean_benchmarks")
 
