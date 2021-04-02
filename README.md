@@ -15,3 +15,7 @@ This is the implementation of our [AAAI-2021 paper](https://arxiv.org/pdf/2009.0
     git checkout 91a93a57c08812e3fe24aabd71219b744d2355ad
     ```
 - [PySAT](https://github.com/pysathq/pysat)
+- [Notears](https://github.com/xunzheng/notears)
+
+## Documentation
+Python tutorials are available in [doc](doc/).
