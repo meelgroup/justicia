@@ -491,12 +491,11 @@ def get_statistics_from_df(data, known_sensitive_attributes, verbose=False):
     attribute_variable_map = {}
     variable_attribute_map = {}
 
-    _mean = data.mean() 
     column_info = {}
-    for idx in range(len(data.columns)):
-        
-        column_info[idx] = ("Bin", data.columns[idx])
-        probs[idx + 1] = round(_mean[data.columns[idx]], 3)
+    for idx, column in enumerate(data.columns):
+        _max_value = data[column].max()
+        column_info[idx] = ("Bin", column, _max_value)
+        probs[idx + 1] = round((data[column] == _max_value).mean(), 3)
         assert 0 <= probs[idx + 1] and probs[idx + 1] <= 1, "Error in calculating probabilities"
         if(probs[idx + 1] == 0):
             probs[idx + 1] = 0.001
@@ -509,31 +508,32 @@ def get_statistics_from_df(data, known_sensitive_attributes, verbose=False):
             if(data.columns[idx].split("_")[0] in known_sensitive_attributes[group_idx]):
                 sensitive_attributes[group_idx].append(idx + 1)
                 _is_sensitive_attribute = True
-                variable_attribute_map[idx + 1] = data.columns[idx]
-                attribute_variable_map[data.columns[idx]] = idx + 1
+                variable_attribute_map[idx + 1] = (data.columns[idx], _max_value)
+                attribute_variable_map[(data.columns[idx], _max_value)] = idx + 1
                     
                 break
 
             elif(data.columns[idx] in known_sensitive_attributes[group_idx]):
                 sensitive_attributes[group_idx].append(idx + 1)
-                variable_attribute_map[idx + 1] = data.columns[idx]
-                attribute_variable_map[data.columns[idx]] = idx + 1
+                variable_attribute_map[idx + 1] = (data.columns[idx], _max_value)
+                attribute_variable_map[(data.columns[idx], _max_value)] = idx + 1
                 _is_sensitive_attribute = True
                 break
 
         # otherwise non-sensitive attributes 
         if(not _is_sensitive_attribute):
             attributes.append(idx + 1)
-            attribute_variable_map[data.columns[idx]] = idx + 1
-            variable_attribute_map[idx + 1] = data.columns[idx] 
-        
-    if(verbose):
+            variable_attribute_map[idx + 1] = (data.columns[idx], _max_value)
+            attribute_variable_map[(data.columns[idx], _max_value)] = idx + 1
+
+    if(verbose > 1):
         print("\nvariable to attribute map ->")    
         print(variable_attribute_map)
         print("\nattribute to variable map ->")
         print(attribute_variable_map)
         print("\n\n\n")
         
+    
         
         
     return attributes, sensitive_attributes, probs, variable_attribute_map, column_info
@@ -548,7 +548,8 @@ def calculate_probs_linear_classifier_wrap(data, column_info):
 
         
         if(column_info[idx][0] == "Bin"):
-            probs[_attributes_cnt] = round(data[data.columns[idx]].mean(), 3)
+            probs[_attributes_cnt] = round((data[data.columns[idx]] == column_info[idx][2]).mean(), 3)
+            assert 0 <= probs[idx + 1] and probs[idx + 1] <= 1, "Error in calculating probabilities"
             if(probs[_attributes_cnt] == 0):
                 probs[_attributes_cnt] = 0.001
             elif(probs[_attributes_cnt] == 1):
@@ -673,7 +674,7 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
     TODO Data contains either binary attributes or real-valued attributes. 
     If it is binary attributes, the probability calculation is trivial. 
     For real-valued attributes, we need to discretize it. 
-    let a is the coefficient and x is the real-valued features. 
+    let a be the coefficient and x is the real-valued features. 
     now x has to be discretized to, say z1, z2 and z3. 
     We apply the following transformation
 
@@ -694,7 +695,11 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
     _discretized_attributes_group = []
     for idx in range(len(data.columns)):
         
-        _num_uniques = len(data[data.columns[idx]].unique())
+        
+        _uniques = data[data.columns[idx]].unique()
+        _num_uniques = len(_uniques)
+        assert _num_uniques > 0
+        _max_value = _uniques.max()
         # assert _num_uniques != 1, "Error:  " + data.columns[idx] + " feature contains single feature-value"
         if( _num_uniques <= 2):
 
@@ -706,29 +711,30 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
                     sensitive_attributes[group_idx].append(_attributes_cnt)
                     _is_sensitive_attribute = True
                     variable_attribute_map[_attributes_cnt] = data.columns[idx]
-                    attribute_variable_map[data.columns[idx]] = _attributes_cnt
+                    variable_attribute_map[_attributes_cnt] = (data.columns[idx], None , _max_value, "==", None)
+                    attribute_variable_map[(data.columns[idx], None, _max_value, "==", None)] = _attributes_cnt
                     break
 
                 elif(known_sensitive_attributes[group_idx].startswith(data.columns[idx])):
                     sensitive_attributes[group_idx].append(_attributes_cnt)
                     _is_sensitive_attribute = True
-                    variable_attribute_map[_attributes_cnt] = data.columns[idx]
-                    attribute_variable_map[data.columns[idx]] = _attributes_cnt
+                    variable_attribute_map[_attributes_cnt] = (data.columns[idx], None , _max_value, "==", None)
+                    attribute_variable_map[(data.columns[idx], None, _max_value, "==", None)] = _attributes_cnt
                     break
 
             # otherwise non-sensitive attributes 
             if(not _is_sensitive_attribute):
                 attributes.append(_attributes_cnt)
-                variable_attribute_map[_attributes_cnt] = data.columns[idx]
-                attribute_variable_map[data.columns[idx]] = _attributes_cnt
-                                
+                variable_attribute_map[_attributes_cnt] = (data.columns[idx], None , _max_value, "==", None)
+                attribute_variable_map[(data.columns[idx], None, _max_value, "==", None)] = _attributes_cnt
+    
 
             # binary features
             calculated_weights.append(weights[idx])
-            probs[_attributes_cnt] = round(data[data.columns[idx]].mean(), 3)
+            probs[_attributes_cnt] = round((data[data.columns[idx]] == _max_value).mean(), 3)
             _attributes_cnt += 1
             
-            column_info[idx] = ("Bin", data.columns[idx])
+            column_info[idx] = ("Bin", data.columns[idx], _max_value)
         
         else:
             bins = min(4, _num_uniques)
@@ -862,7 +868,7 @@ def get_statistics_for_linear_classifier_wrap(data, weights, known_sensitive_att
                 assert abs(_sum - 1 ) <= 0.1, "Error in calculating probabilities of discretized variables. Computed value is "  + str(abs(_sum - 1 ))  + " in group " + str(_discretized_attributes_group[-1])
 
 
-    if(verbose):
+    if(verbose > 1):
         print("\nvariable to attribute map ->")    
         print(variable_attribute_map)
         print("\nattribute to variable map ->")

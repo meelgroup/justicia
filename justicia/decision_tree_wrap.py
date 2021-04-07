@@ -100,7 +100,7 @@ class dtWrapper():
             
         self._max_attribute_index = cnt - 1
 
-        if(verbose):
+        if(verbose > 1):
             print("\nattribute to variable map ->")
             print(self.attribute_variable_map)
             print("\nvarible to attribute map ->")
@@ -253,7 +253,7 @@ class dtWrapper():
         recurse(0, 1, [])
 
         
-        if(verbose):
+        if(verbose > 1):
             print("\n\n\nnodes ->")
             for node in self.nodes:
                 print(node)

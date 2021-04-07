@@ -10,7 +10,7 @@ class Fairness_verifier():
     def __init__(self, timeout = 400):
         self.num_variables = 0
         self.num_clauses = 0
-        self.timeout = timeout
+        self.timeout = max(int(timeout), 10)
         self.execution_error = False
         pass
 
@@ -35,7 +35,6 @@ class Fairness_verifier():
 
         # Execute and read output
         cmd = "timeout " + str(self.timeout) + " stdbuf -oL " + " abc -c \"ssat -v " + str(dir_path) + "/" +str(filename)+"\" 1>" + str(dir_path) + "/" +str(filename) + "_out.log" + " 2>" + str(dir_path) + "/" +str(filename) + "_err.log"
-        # print(cmd)
         os.system(cmd)
 
         if(verbose):

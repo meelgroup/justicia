@@ -5,9 +5,9 @@ from justicia.ssat_wrap import Fairness_verifier
 from justicia.decision_tree_wrap import dtWrapper
 import numpy as np
 import pandas as pd
-import time 
 from justicia import dependency_utils
 from itertools import chain
+from time import time
 
 
 # supporting classifiers
@@ -52,10 +52,10 @@ class Metric():
 
         
         # preprocessing
-        start_time = time.time()
+        start_time = time()
         self.encoding = utils.select_encoding(self._model_name, self.encoding, self._verbose)
         self._get_required_params()
-        self.time_taken = time.time() - start_time
+        self.time_taken = time() - start_time
         
 
 
@@ -67,9 +67,9 @@ class Metric():
 
     
     def compute(self):
-        start_time = time.time()
+        start_time = time()
         self._compute()
-        self.time_taken += time.time() - start_time
+        self.time_taken += time() - start_time
 
         return self
 
@@ -91,7 +91,7 @@ class Metric():
         result_most_favored_group = []
         result_least_favored_group = []
 
-        start_time = time.time()
+        start_time = time()
         
         # when y = 1
         self._data = full_data[y == 1]
@@ -126,7 +126,7 @@ class Metric():
         self.most_favored_group = result_most_favored_group
         self.least_favored_group = result_least_favored_group
         self._time_taken_notears = _time_taken_notears
-        self.time_taken = time.time() - start_time
+        self.time_taken = time() - start_time
 
         return self
 
@@ -188,14 +188,15 @@ class Metric():
 
             
             if(self._verbose):
-                print("Classifier:", self._classifier)
+                # print("Classifier:", self._classifier)
                 print("Total number of variables in the formula:", self._num_attributes)
+                """
                 print("Attribute variables:", self._attributes)
                 print("Auxiliary variables:", self._auxiliary_variables)
                 print("sensitive feature: ", self._sensitive_attributes)
                 if(self.encoding != "Enum-correlation"):
                     print("\nprobabilities:", self._probs)
-
+                """
 
                 
             # if("correlation" in self.encoding or "dependency" in self.encoding or "efficient" in self.encoding):
@@ -283,7 +284,6 @@ class Metric():
        
         
         if("dependency" in self.encoding or self.encoding in ['Learn-correlation', 'Learn-efficient-correlation']):
-            
             _sensitive_attributes = []
             for _group in self._sensitive_attributes:
                 if(len(_group)==1):
@@ -308,9 +308,9 @@ class Metric():
 
                 if(self._given_dependency_graph is None):
                     # Learn DAG
-                    notears_time_start = time.time()
+                    notears_time_start = time()
                     edges, self._graph_edges, flag = dependency_utils._call_notears(self._transform(self._data.copy()), self._sensitive_attributes, regularizer=self._notears_regularizer, verbose=self._verbose, filename=self._filename)
-                    self._time_taken_notears = time.time() - notears_time_start
+                    self._time_taken_notears = time() - notears_time_start
                     if(not flag):
                         self._execution_error = True
                 
@@ -333,13 +333,13 @@ class Metric():
                 raise ValueError
                 edge_weights = dependency_utils.Bayesian_estimate(self._data.copy(), edges, self._graph_edges)
 
-                
+            """   
             if(self._verbose):
                 print("\n\nBefore encoding dependency")
                 print("Attribute variables:", self._attributes)
                 print("Auxiliary variables:", self._auxiliary_variables)
                 print("sensitive feature: ", self._sensitive_attributes)
-                print("Classifier:", self._classifier)
+                # print("Classifier:", self._classifier)
 
                 print("\n")
                 print("Neg Attribute variables:", self._attributes)
@@ -354,7 +354,7 @@ class Metric():
                 print("\n")
                 # print("Edge weights:", edge_weights)
                 # print(".............\n\n")
-                
+            """    
 
             
             dependency = dependency_utils.Dependency(edges, edge_weights, self._probs, variable_header = self._num_attributes if self._num_attributes_neg is None else max(self._num_attributes, self._num_attributes_neg))
@@ -368,13 +368,16 @@ class Metric():
             self._probs = dependency.probs
             self._auxiliary_variables += [var for var in dependency.auxiliary_variables if var not in all_sensitive_attributes]
 
+
             if(self._verbose):
+                """
                 print(dependency)
                 print("Attribute variables:", self._attributes)
                 print("Auxiliary variables:", self._auxiliary_variables)
                 print("sensitive feature: ", self._sensitive_attributes)
                 if(self.encoding != "Enum-correlation"):
                     print("\nprobabilities:", self._probs)
+                """
                 print("\nMapping", dependency.introduced_variables_map)
                 print("\n\n\n")
 
@@ -386,7 +389,6 @@ class Metric():
 
             elif(self.encoding == "Learn-efficient-dependency" or self.encoding == "Learn-efficient-correlation"):
                 self._attributes_neg = list(set([var for var in self._attributes_neg if var not in dependency.auxiliary_variables] + dependency.attributes))
-                # self._attributes_neg = [var for var in self._attributes_neg if var not in dependency.auxiliary_variables] + dependency.attributes
                 self._auxiliary_variables_neg += [var for var in dependency.auxiliary_variables if var not in all_sensitive_attributes]
 
 
@@ -397,11 +399,6 @@ class Metric():
                 
             elif(self.encoding == "Learn-dependency" or self.encoding == "Learn-correlation"):
                 self._encode_path_specific_causal_fairness(variable_map=dependency.introduced_variables_map)
-
-                # CNF is the conjunction of both classifier and dependency constraint
-                # self._classifier += dependency.CNF
-                # dependency.CNF = []
-
                 max_value, min_value = self._run_Learn(dependency_constraints=dependency.CNF)
                 
             else:
@@ -453,7 +450,7 @@ class Metric():
 
     def _run_Enum(self, dependency_constraints=[]):
 
-        if(self._verbose):
+        if(self._verbose > 1):
             print("\nProbabilities:")
             print(self._probs)
 
@@ -500,19 +497,29 @@ class Metric():
         result = {}
         for var in configuration:
             if var > 0:
-                if(self._model_name in ["linear-model", "CNF"]):
-                    result[self._variable_attribute_map[var]] = 1
+                if(self._model_name in ["CNF"]):
+                    feature, threshold = self._variable_attribute_map[var]
+                    result[feature] = ("==", threshold)
                 elif(self._model_name == "decision-tree"):
-                    (_feature, _threshold) = self._variable_attribute_map[var]
-                    result[_feature] = 0
+                    (feature, threshold) = self._variable_attribute_map[var]
+                    result[feature] = ("<", threshold)
+                elif(self._model_name == "linear-model"):
+                    feature, _, threshold, _, _ = self._variable_attribute_map[var]
+                    result[feature] = ("==", threshold)
+
                 else:
                     raise ValueError
             else:
-                if(self._model_name in ["linear-model", "CNF"]):
-                    result[self._variable_attribute_map[-1 * var]] = 0
+                if(self._model_name in ["CNF"]):
+                    feature, threshold = self._variable_attribute_map[-1 * var]
+                    result[feature] = ("!=", threshold)
                 elif(self._model_name == "decision-tree"):
-                    (_feature, _threshold) = self._variable_attribute_map[-1 * var]
-                    result[_feature] = 1
+                    (feature, threshold) = self._variable_attribute_map[-1 * var]
+                    result[feature] = (">=", threshold)
+                elif(self._model_name == "linear-model"):
+                    feature, _, threshold, _, _ = self._variable_attribute_map[-1 * var]
+                    result[feature] = ("!=", threshold)
+
                 else:
                     raise ValueError    
 
@@ -640,9 +647,14 @@ class Metric():
                     _feature, _, _threshold_1, _comparator_2, _threshold_2 = self._variable_attribute_map[var]
                     if(_feature in self.given_mediator_attributes):
                         self._mediator_attributes.append(var)
+                elif(self._model_name in ["CNF"]):
+                    _feature, _threshold = self._variable_attribute_map[var]
+                    if(_feature in self.given_mediator_attributes):
+                        self._mediator_attributes.append(var)
                 else:
                     raise ValueError(self._model_name)
             else:
+                raise ValueError(self._model_name)
                 if(self._variable_attribute_map[var] in self.given_mediator_attributes):
                     self._mediator_attributes.append(var)
 
@@ -656,8 +668,22 @@ class Metric():
         # construct a mask for the given major group
         mask = (True)
         for attribute in self.given_major_group:
-            # assert len(self._data[attribute].unique()) == 2
-            mask = mask & (self._data[attribute] == self.given_major_group[attribute])
+            comparator, threshold = self.given_major_group[attribute]
+            if(comparator == "=="):
+                mask = mask & (self._data[attribute] == threshold)
+            elif(comparator == "!="):
+                mask = mask & (self._data[attribute] != threshold)
+            elif(comparator == ">"):
+                mask = mask & (self._data[attribute] > threshold)
+            elif(comparator == ">="):
+                mask = mask & (self._data[attribute] >= threshold)
+            elif(comparator == "<"):
+                mask = mask & (self._data[attribute] < threshold)
+            elif(comparator == "<="):
+                mask = mask & (self._data[attribute] <= threshold)
+            else:
+                raise ValueError(comparator)
+                
         
         # compute probabilities of mediator variables for the major group
         mediator_probs = None
@@ -703,11 +729,19 @@ class Metric():
                         df[variable] =  ((orig_df[_feature] >= _threshold_1) & (orig_df[_feature] < _threshold_2)).astype(int)
                     elif(_comparator_2 == "<="):
                         df[variable] = ((orig_df[_feature] >= _threshold_1) & (orig_df[_feature] <= _threshold_2)).astype(int)
+                    elif(_comparator_2 == "=="):
+                        df[variable] = (orig_df[_feature] == _threshold_1).astype(int)
+                    
+                
                     else:
                         raise ValueError(_comparator_2)
+                elif(self._model_name == "CNF"):
+                    (_feature, _threshold) = self._variable_attribute_map[variable]
+                    df[variable] = (orig_df[_feature] == _threshold).astype(int)
                 else:
                     raise ValueError(self._model_name)
             else:
+                raise ValueError(self._model_name)
                 df[variable] = (self._data[self._variable_attribute_map[variable]] == 1).astype(int)       
         # reorder columns
         df = df[[i + 1 for i in range(len(self._variable_attribute_map))]]
@@ -734,13 +768,18 @@ class Metric():
                     mask = mask & (self._data[_feature] >= _threshold_1) & (self._data[_feature] < _threshold_2)
                 elif(_comparator_2 == "<="):
                     mask = mask & (self._data[_feature] >= _threshold_1) & (self._data[_feature] <= _threshold_2)
+                elif(_comparator_2 == "=="):
+                    mask = mask & (self._data[_feature] == _threshold_1)       
                 else:
                     raise ValueError(_comparator_2)
+            elif(self._model_name == "CNF"):
+                (_feature, _threshold) = self._variable_attribute_map[dominating_var]
+                mask = mask & (self._data[_feature] == _threshold)
             else:
                 raise ValueError(self._model_name)
         else:
-            mask = mask & (self._data[self._variable_attribute_map[dominating_var]] == 1)       
-
+            raise ValueError(self._model_name)
+            
         if(negate_mask):
             mask = ~mask
             

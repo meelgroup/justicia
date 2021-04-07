@@ -177,7 +177,7 @@ def _call_notears(data, sensitive_attributes, regularizer = 0.01, verbose=True, 
     If there is, then reverse the edge and check if the graph is still a DAG, or revert changes.
     """
     temp = iG.copy()
-    if(verbose):
+    if(verbose > 1):
         print("\nLearned graph")
         print(iG)
     for a,b in iG.get_edgelist():
@@ -200,7 +200,7 @@ def _call_notears(data, sensitive_attributes, regularizer = 0.01, verbose=True, 
             print("Inverting edge direction still produces a DAG")
         
     
-    if(verbose):
+    if(verbose > 1):
         print("\nAfter modification")
         print(iG)
         
