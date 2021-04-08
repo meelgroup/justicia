@@ -468,6 +468,7 @@ def get_one_hot_encoded_df(df, columns_to_one_hot, verbose = False):
             df = df.drop(column,axis = 1)
             df = df.join(one_hot)
         else:
+            # print(column, unique_categories)
             if(0 in unique_categories and 1 in unique_categories):
                 if(verbose):
                     print(column, " has categories 1 and 0")
