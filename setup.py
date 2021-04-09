@@ -10,7 +10,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
   name = 'justicia',
   packages = ['justicia'],
-  version = 'v0.0.3',
+  version = 'v0.0.4',
   license='MIT',
   description = 'This library can be used formally verify machine learning models on multiple fairness definitions.',
   long_description=long_description,
@@ -18,7 +18,7 @@ setup(
   author = 'Bishwamittra Ghosh',
   author_email = 'bishwamittra.ghosh@gmail.com',
   url = 'https://github.com/meelgroup/justicia',
-  download_url = 'https://github.com/meelgroup/justicia/archive/v0.0.3.tar.gz',
+  download_url = 'https://github.com/meelgroup/justicia/archive/v0.0.4.tar.gz',
   keywords = ['ML fairness verification', 'Application of SSAT solvers'],   # Keywords that define your package best
   classifiers=[
     'Development Status :: 3 - Alpha',

@@ -19,3 +19,4 @@ temp/*
 data/*
 *sdimacs*
 */*sdimacs*
+tests/*

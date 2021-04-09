@@ -15,9 +15,6 @@ import math
 import pandas as pd
 import justicia.utils as utils
 import os
-from data.objects import titanic as titanic_   
-from data.objects import adult as adult_
-from data.objects import ricci as ricci_
 # from fairness_comparison.fairness.data.objects import Ricci
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV

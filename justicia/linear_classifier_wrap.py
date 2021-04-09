@@ -16,7 +16,6 @@ import numpy as np
 from sklearn.datasets import load_iris
 import justicia.utils as utils
 from sklearn import metrics
-from data.objects import titanic as titanic_
 import numpy as np
 import os
 import pickle
