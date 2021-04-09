@@ -16,7 +16,9 @@ justicia.egg-info/*
 */__pycache__/*
 build/*
 temp/*
-data/*
 *sdimacs*
 */*sdimacs*
 tests/*
+data/model/*
+data/model*
+data/output/*
