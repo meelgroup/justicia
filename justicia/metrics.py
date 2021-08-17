@@ -481,7 +481,7 @@ class Metric():
             
             if(flag == True):
                 self._execution_error = True
-                break
+                continue
 
             if(min_value > fv.sol_prob):
                 min_value = fv.sol_prob
@@ -538,7 +538,7 @@ class Metric():
 
         if(flag == True):
             self._execution_error = True
-            return None, None
+            # return None, None
         else:
             max_value = fv.sol_prob
             self.most_favored_group = self._get_group(fv)
@@ -577,7 +577,7 @@ class Metric():
         flag = fv.invoke_SSAT_solver(self._filename, find_maximization = True, verbose=self._verbose)
         if(flag == True):
             self._execution_error = True
-            return None, None
+            # return None, None
         else:
             max_value = fv.sol_prob
             self.most_favored_group = self._get_group(fv)
@@ -870,7 +870,7 @@ class Metric():
             if(flag == True):
                 self._execution_error = True
                 max_value ==  min_value
-                break
+                continue
 
             if(min_value > fv.sol_prob):
                 min_value = fv.sol_prob

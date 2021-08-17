@@ -4,6 +4,8 @@ import subprocess
 from pysat.formula import CNF
 import numpy as np
 from pysat.pb import *
+from datetime import datetime
+import random
 
 class Fairness_verifier():
 
@@ -12,6 +14,9 @@ class Fairness_verifier():
         self.num_clauses = 0
         self.timeout = max(int(timeout), 10)
         self.execution_error = False
+        self.benchmark_location = "benchmark/"
+        self.benchmaking_enabled = True
+        self.do_not_solve = True
         pass
 
     def __str__(self):
@@ -30,6 +35,9 @@ class Fairness_verifier():
         # print("\n\n")
         # print(self.formula)
         # print("\n\n")
+
+        if(self.benchmaking_enabled and self.do_not_solve):
+            return True
 
         dir_path = os.path.dirname(os.path.realpath(filename))
 
@@ -98,8 +106,8 @@ class Fairness_verifier():
             
         # remove formula file
         # os.system("rm " + str(dir_path) + "/" +str(filename))
-        
 
+        
 
         return self.execution_error
         
@@ -189,6 +197,18 @@ class Fairness_verifier():
         file = open(filename, "w")
         file.write(self.formula)
         file.close()
+
+
+        if(self.benchmaking_enabled):
+            # copying sdimacs file to a new location for benchmarking
+            os.system("mkdir -p " + self.benchmark_location)
+            os.system("cp " + str(filename) + " " + self.benchmark_location)
+            if(".sdimacs" in filename):
+                os.system("mv " + self.benchmark_location + "/" + str(filename) + " " + self.benchmark_location + "/" + str(filename[:-8]) + "_RE" + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000)) + ".sdimacs")
+            else:
+                os.system("mv " + self.benchmark_location + "/" + str(filename) + " " + self.benchmark_location + "/" + str(filename)  + "_RE" + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000)))
+
+
 
         # if(verbose):
         #     print("SSAT instance ->")
@@ -304,6 +324,18 @@ class Fairness_verifier():
         file = open(filename, "w")
         file.write(self.formula)
         file.close()
+
+
+        if(self.benchmaking_enabled):
+            # copying sdimacs file to a new location for benchmarking
+            os.system("mkdir -p " + self.benchmark_location)
+            os.system("cp " + str(filename) + " " + self.benchmark_location)
+            if(".sdimacs" in filename):
+                os.system("mv " + self.benchmark_location + "/" + str(filename) + " " + self.benchmark_location + "/" + str(filename[:-8]) + "_ER" + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000)) + ".sdimacs")
+            else:
+                os.system("mv " + self.benchmark_location + "/" + str(filename) + " " + self.benchmark_location + "/" + str(filename)  + "_ER" + datetime.now().strftime('_%Y_%m_%d_%H_%M_%S_') + str(random.randint(0, 100000)))
+
+
         
         
 
