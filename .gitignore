@@ -22,3 +22,4 @@ tests/*
 data/model/*
 data/model*
 data/output/*
+doc/data/*
