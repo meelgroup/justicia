@@ -1,5 +1,12 @@
 # Justicia
-This is the implementation of our AAAI [2021](https://arxiv.org/pdf/2009.06516.pdf) and [2022](https://arxiv.org/pdf/2109.09447.pdf) where we have proposed a formal approach to verify the fairness of machine learning classifiers.
+This is the implementation of our AAAI [2021](https://arxiv.org/pdf/2009.06516.pdf) and [2022](https://arxiv.org/pdf/2109.09447.pdf)  papers where we have proposed a formal approach to verify the fairness of machine learning classifiers.
+
+
+![](images/fairness_illustration.png)
+
+## Documentation
+Python tutorials are available in [doc](doc/).
+
 
 ## Install
 - Install the python library
@@ -9,7 +16,7 @@ This is the implementation of our AAAI [2021](https://arxiv.org/pdf/2009.06516.p
 
 ### Other dependencies
 - [PGMPY](https://github.com/pgmpy/pgmpy)
-- [SSAT solver](https://github.com/nianzelee/ssatABC). Checkout to compatible version.
+- [SSAT solver](https://github.com/nianzelee/ssatABC). Checkout to the compatible version.
     
     ```
     git clone https://github.com/NTU-ALComLab/ssatABC.git
@@ -18,8 +25,6 @@ This is the implementation of our AAAI [2021](https://arxiv.org/pdf/2009.06516.p
     ```
 - [PySAT](https://github.com/pysathq/pysat)
 
-## Documentation
-Python tutorials are available in [doc](doc/).
 
 ## Citations
 Please cite following papers.
