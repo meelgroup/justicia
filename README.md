@@ -29,7 +29,7 @@ Python tutorials are available in [doc](doc/).
 ## Citations
 Please cite following papers.
 ```
-@inproceedings{ghosh2020justicia,
+@inproceedings{ghosh2022algorithmic,
 author={Ghosh, Bishwamittra and Basu, Debabrota and Meel, Kuldeep S.},
 title={Algorithmic Fairness Verification with Graphical Models},
 booktitle={Proceedings of AAAI},
@@ -37,7 +37,7 @@ month={2},
 year={2022},
 }
 
-@inproceedings{ghosh2020justicia,
+@inproceedings{ghosh2021justicia,
 author={Ghosh, Bishwamittra and Basu, Debabrota and Meel, Kuldeep S.},
 title={Justicia: A Stochastic {SAT} Approach to Formally Verify Fairness},
 booktitle={Proceedings of AAAI},
