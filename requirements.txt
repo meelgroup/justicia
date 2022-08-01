@@ -25,6 +25,7 @@ bleach==3.1.0
 bokeh==1.4.0
 boto==2.49.0
 Bottleneck==1.3.2
+build==0.8.0
 CacheControl==0.12.6
 certifi==2019.11.28
 cffi==1.14.0
@@ -93,6 +94,7 @@ jupyter-console==6.1.0
 jupyter-core==4.6.1
 jupyterlab==1.2.6
 jupyterlab-server==1.0.6
+justicia==0.0.5
 keyring==21.1.0
 keyrings.alt==4.0.2
 kiwisolver==1.1.0
@@ -142,6 +144,7 @@ path==13.1.0
 pathlib2==2.3.5
 pathtools==0.1.2
 patsy==0.5.1
+pep517==0.13.0
 pep8==1.7.1
 pexpect==4.8.0
 pgmpy==0.1.14
@@ -242,6 +245,7 @@ terminado==0.8.3
 testpath==0.4.4
 texttable==1.6.3
 threadpoolctl==2.1.0
+tomli==2.0.1
 toolz==0.10.0
 toposort==1.6
 torch==1.8.1
