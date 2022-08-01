@@ -10,7 +10,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
   name = 'justicia',
   packages = ['justicia'],
-  version = 'v0.0.4',
+  version = 'v0.0.5',
   license='MIT',
   description = 'This library can be used formally verify machine learning models on multiple fairness definitions.',
   long_description=long_description,

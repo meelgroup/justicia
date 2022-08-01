@@ -9,10 +9,10 @@ Python tutorials are available in [doc](doc/).
 
 
 ## Install
+- Install python dependencies (prerequisite)
+`pip install -r requirements.txt`
 - Install the python library
 `pip install justicia`
-- Install other python dependencies
-`pip install -r requirements.txt`
 
 ### Other dependencies
 - [PGMPY](https://github.com/pgmpy/pgmpy)

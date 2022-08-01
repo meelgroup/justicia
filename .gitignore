@@ -23,3 +23,5 @@ data/model/*
 data/model*
 data/output/*
 doc/data/*
+data/raw/reduced*
+*.pyc

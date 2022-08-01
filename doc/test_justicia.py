@@ -1,7 +1,12 @@
 import sys
-sys.path.append("../")
 from justicia import linear_classifier_wrap
 from justicia import decision_tree_wrap
+from justicia.metrics import Metric
+from justicia import mlic_wrap
+
+
+
+sys.path.append("../")
 from data.objects.compas import Compas
 from data.objects.bank import Bank
 from data.objects.german import German
@@ -9,8 +14,6 @@ from data.objects.adult import Adult
 from data.objects.titanic import Titanic
 from data.objects.ricci import Ricci
 import argparse
-from justicia.metrics import Metric
-from justicia import mlic_wrap
 
 
 
